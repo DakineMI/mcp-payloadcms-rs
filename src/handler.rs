@@ -1,0 +1,107 @@
+// <-- handler.rs: single clean ServerHandler implementation
+use crate::error::ServiceResult;
+use rmcp::ErrorData as CallToolError;
+use rmcp::handler::server::ServerHandler;
+use rmcp::model::{
+    CallToolRequestParam as CallToolRequest, CallToolResult, ListToolsResult,
+    PaginatedRequestParam as ListToolsRequest,
+};
+use rmcp::service::{RequestContext, RoleServer};
+use std::future::ready;
+
+pub struct MyServerHandler;
+
+impl MyServerHandler {
+    pub fn try_new() -> ServiceResult<Self> {
+        Ok(Self)
+    }
+
+    pub fn instructions_content() -> Option<String> {
+        let content = include_str!("../docs/tool-instructions.md");
+        if content.is_empty() {
+            None
+        } else {
+            Some(content.to_string())
+        }
+    }
+
+    fn create_tool_parse_error(error: impl std::fmt::Display, tool_name: &str) -> CallToolError {
+        let error_msg = format!("JSON validation failed for tool '{tool_name}' - {error}");
+        CallToolError::invalid_params(error_msg, None)
+    }
+}
+
+impl ServerHandler for MyServerHandler {
+    fn ping(
+        &self,
+        _ctx: RequestContext<RoleServer>,
+    ) -> impl std::future::Future<Output = Result<(), rmcp::ErrorData>> + Send {
+        ready(Ok(()))
+    }
+
+    async fn list_resources(
+        &self,
+        _req: Option<rmcp::model::PaginatedRequestParam>,
+        _ctx: RequestContext<RoleServer>,
+    ) -> Result<rmcp::model::ListResourcesResult, rmcp::ErrorData> {
+        use rmcp::model::{Annotated, RawResource};
+        Ok(rmcp::model::ListResourcesResult {
+            resources: vec![Annotated {
+                raw: RawResource {
+                    uri: "file://instructions".to_string(),
+                    name: "notify Tools Usage Instructions".to_string(),
+                    title: Some("notify Tools Guide".to_string()),
+                    description: Some("Guide to notify tools".to_string()),
+                    mime_type: Some("text/markdown".to_string()),
+                    size: None,
+                    icons: None,
+                },
+                annotations: None,
+            }],
+            next_cursor: None,
+        })
+    }
+
+    async fn read_resource(
+        &self,
+        req: rmcp::model::ReadResourceRequestParam,
+        _ctx: RequestContext<RoleServer>,
+    ) -> Result<rmcp::model::ReadResourceResult, rmcp::ErrorData> {
+        if req.uri == "file://instructions" {
+            let content = Self::instructions_content().unwrap_or_default();
+            Ok(rmcp::model::ReadResourceResult {
+                contents: vec![rmcp::model::ResourceContents::text(
+                    content,
+                    "file://instructions",
+                )],
+            })
+        } else {
+            Err(rmcp::ErrorData::invalid_params(
+                format!("Unknown resource URI: {}", req.uri),
+                None,
+            ))
+        }
+    }
+
+    fn list_tools(
+        &self,
+        _req: Option<ListToolsRequest>,
+        _ctx: RequestContext<RoleServer>,
+    ) -> impl std::future::Future<Output = Result<ListToolsResult, rmcp::ErrorData>> + Send {
+        ready(Ok(ListToolsResult {
+            tools: Vec::new(),
+            next_cursor: None,
+        }))
+    }
+
+    async fn call_tool(
+        &self,
+        request: CallToolRequest,
+        _ctx: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
+        Err(MyServerHandler::create_tool_parse_error(
+            "Unknown tool",
+            &request.name,
+        ))
+    }
+}

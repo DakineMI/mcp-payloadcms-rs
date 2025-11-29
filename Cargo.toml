@@ -22,3 +22,4 @@ axum = "0.7"
 hyper = { version = "0.14", features = ["full"] }
 hyper-util = { version = "0.1", features = ["server", "tokio"] }
 tempfile = "3.6"
+clap = { version = "4", features = ["derive"] }
