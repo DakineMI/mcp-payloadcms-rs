@@ -23,8 +23,6 @@ pub enum Command {
     Shutdown,
     /// Print version information
     Version,
-    /// Show CLI help
-    Help,
     /// Print setup guidance for a client (prefers HTTP endpoints)
     Setup,
     /// Open an interactive config editor for settings.json

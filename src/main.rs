@@ -113,11 +113,6 @@ async fn main() {
                 metadata::PKG_DESCRIPTION
             );
         }
-        cli::Command::Help => {
-            let mut cmd = cli::Cli::command();
-            let _ = cmd.print_help();
-            println!();
-        }
         cli::Command::Setup => {
             let mut args = load_settings();
             interactive_setup(&mut args);
