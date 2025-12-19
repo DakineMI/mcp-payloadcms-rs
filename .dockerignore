@@ -1,0 +1,10 @@
+target/
+.git/
+.github/
+.vscode/
+.specstory/
+.roo/
+Dockerfile
+.dockerignore
+settings.json
+*.md

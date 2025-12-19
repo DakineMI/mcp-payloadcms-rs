@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::tools::generator::{generate_template, TemplateType};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct FieldOption {
     pub name: String,
@@ -17,7 +18,7 @@ pub struct FieldOption {
     pub validation: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CollectionOption {
     pub name: String,
@@ -28,7 +29,7 @@ pub struct CollectionOption {
     pub versions: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct GlobalOption {
     pub name: String,
@@ -36,7 +37,7 @@ pub struct GlobalOption {
     pub versions: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockOption {
     pub name: String,
@@ -45,7 +46,7 @@ pub struct BlockOption {
     pub content_field: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AdminOption {
     pub user: Option<String>,
@@ -54,7 +55,7 @@ pub struct AdminOption {
     pub group: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ScaffoldOptions {
     pub project_name: String,

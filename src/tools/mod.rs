@@ -1,10 +1,5 @@
-pub mod generator;
-pub mod index;
-pub mod query;
-pub mod scaffolder;
-pub mod schemas;
-pub mod sql;
-pub mod types;
-pub mod validator;
+pub mod echo;
+pub mod health;
 
-pub use index::*;
+pub use echo::EchoParams;
+pub use health::HealthParams;

@@ -1,8 +1,8 @@
 use regex::Regex;
 use serde_json::{json, Map, Value};
 
-use crate::tools::types::{FileType, ValidationRule};
-use crate::tools::validator::validation_rules;
+use crate::payload_tools::types::{FileType, ValidationRule};
+use crate::payload_tools::validator::validation_rules;
 
 pub fn query_validation_rules(query: &str, file_type: Option<FileType>) -> Vec<ValidationRule> {
     let normalized = query.to_lowercase().trim().to_string();
@@ -165,8 +165,9 @@ fn matches_condition(rule: &ValidationRule, condition: &str) -> bool {
         return true;
     }
 
-    let equality = Regex::new(r#"(?i)(\w+)\s*=\s*['"]?(.*?)['"]?$"#).unwrap();
-    let like = Regex::new(r#"(?i)(\w+)\s+LIKE\s+['"]%(.*?)%['"]"#).unwrap();
+    // Use standard string literals with properly escaped backslashes and quotes
+    let equality = Regex::new("(?i)(\\w+)\\s*=\\s*['\"]?(.*?)['\"]?$").unwrap();
+    let like = Regex::new("(?i)(\\w+)\\s+LIKE\\s+['\"]%(.*?)%['\"]").unwrap();
 
     if let Some(caps) = equality.captures(condition) {
         let field = caps.get(1).map(|m| m.as_str()).unwrap_or("");

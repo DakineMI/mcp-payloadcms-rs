@@ -1,37 +1,158 @@
-// <-- handler.rs: single clean ServerHandler implementation
-use crate::error::ServiceResult;
-use rmcp::ErrorData as CallToolError;
-use rmcp::handler::server::ServerHandler;
-use rmcp::model::{
-    CallToolRequestParam as CallToolRequest, CallToolResult, ListToolsResult,
-    PaginatedRequestParam as ListToolsRequest,
+use std::{future::ready, sync::Arc};
+
+use rmcp::{
+    handler::server::{ServerHandler, tool::ToolRouter, wrapper::Parameters},
+    model::{PaginatedRequestParam as ListResourcesRequest, CallToolResult},
+    service::{RequestContext, RoleServer},
+    tool, tool_handler, tool_router,
+    ErrorData,
 };
-use rmcp::service::{RequestContext, RoleServer};
-use std::future::ready;
+use serde_json::{json, Value};
 
-pub struct MyServerHandler;
+use crate::{
+    server::ServerState,
+    payload_tools::{
+        mcp::{
+            EchoParams, ValidateParams, QueryParams, SqlParams, 
+            GenerateTemplateParams, GenerateCollectionParams, GenerateFieldParams,
+        },
+        scaffolder::{
+            scaffold_project, validate_scaffold_options, ScaffoldFile, ScaffoldFileStructure,
+            ScaffoldOptions,
+        },
+        validator::validate_payload_code,
+        query::{get_validation_rules_with_examples, query_validation_rules},
+        sql::execute_sql_query,
+        generator::{generate_template, TemplateType},
+    },
+};
 
-impl MyServerHandler {
-    pub fn try_new() -> ServiceResult<Self> {
-        Ok(Self)
-    }
+pub struct ToolBoxHandler {
+    state: Arc<ServerState>,
+    tool_router: ToolRouter<Self>,
+}
 
-    pub fn instructions_content() -> Option<String> {
-        let content = include_str!("../docs/tool-instructions.md");
-        if content.is_empty() {
-            None
-        } else {
-            Some(content.to_string())
+impl ToolBoxHandler {
+    pub fn new(state: Arc<ServerState>) -> Self {
+        Self {
+            state,
+            tool_router: Self::tool_router(),
         }
     }
 
-    fn create_tool_parse_error(error: impl std::fmt::Display, tool_name: &str) -> CallToolError {
-        let error_msg = format!("JSON validation failed for tool '{tool_name}' - {error}");
-        CallToolError::invalid_params(error_msg, None)
+    pub fn instructions() -> Option<String> {
+        Some(include_str!("../docs/instructions.md").to_string())
     }
 }
 
-impl ServerHandler for MyServerHandler {
+fn scaffold_to_json(map: ScaffoldFileStructure) -> Value {
+    let mut out = serde_json::Map::new();
+    for (k, v) in map {
+        match v {
+            ScaffoldFile::File(content) => {
+                out.insert(k, json!(content));
+            }
+            ScaffoldFile::Directory(dir) => {
+                out.insert(k, scaffold_to_json(dir));
+            }
+        }
+    }
+    Value::Object(out)
+}
+
+#[tool_router]
+impl ToolBoxHandler {
+    #[tool(name = "echo", description = "Echo a message back to the caller")]
+    fn echo(&self, Parameters(params): Parameters<EchoParams>) -> String {
+        format!("Tool echo: {}", params.message)
+    }
+
+    #[tool(name = "validate", description = "Validate Payload CMS code")]
+    fn validate(&self, Parameters(params): Parameters<ValidateParams>) -> Result<CallToolResult, ErrorData> {
+        let result = validate_payload_code(&params.code, params.file_type);
+        Ok(CallToolResult::structured(json!(result)))
+    }
+
+    #[tool(name = "query", description = "Query validation rules")]
+    fn query(&self, Parameters(params): Parameters<QueryParams>) -> Result<CallToolResult, ErrorData> {
+        let rules = if params.query.trim().is_empty() {
+            get_validation_rules_with_examples(None, params.file_type)
+        } else {
+            query_validation_rules(&params.query, params.file_type)
+        };
+        Ok(CallToolResult::structured(json!({ "rules": rules })))
+    }
+
+    #[tool(name = "mcp_query", description = "Execute SQL-like queries")]
+    fn mcp_query(&self, Parameters(params): Parameters<SqlParams>) -> Result<CallToolResult, ErrorData> {
+        match execute_sql_query(&params.sql) {
+            Ok(results) => Ok(CallToolResult::structured(json!({ "results": results }))),
+            Err(err) => Err(ErrorData::internal_error(err, None)),
+        }
+    }
+
+    #[tool(name = "generate_template", description = "Generate Payload CMS code templates")]
+    fn generate_template(&self, Parameters(params): Parameters<GenerateTemplateParams>) -> Result<CallToolResult, ErrorData> {
+        match generate_template(params.template_type, &params.options) {
+            Ok(code) => Ok(CallToolResult::structured(json!({ "code": code }))),
+            Err(err) => Err(ErrorData::internal_error(err, None)),
+        }
+    }
+
+    #[tool(name = "generate_collection", description = "Generate a Payload CMS collection template")]
+    fn generate_collection(&self, Parameters(params): Parameters<GenerateCollectionParams>) -> Result<CallToolResult, ErrorData> {
+        let mut options = serde_json::Map::new();
+        options.insert("slug".into(), json!(params.slug));
+        if let Some(fields) = params.fields { options.insert("fields".into(), fields); }
+        if let Some(auth) = params.auth { options.insert("auth".into(), json!(auth)); }
+        if let Some(ts) = params.timestamps { options.insert("timestamps".into(), json!(ts)); }
+        if let Some(admin) = params.admin { options.insert("admin".into(), admin); }
+        if let Some(hooks) = params.hooks { options.insert("hooks".into(), json!(hooks)); }
+        if let Some(access) = params.access { options.insert("access".into(), json!(access)); }
+        if let Some(versions) = params.versions { options.insert("versions".into(), json!(versions)); }
+
+        match generate_template(TemplateType::Collection, &Value::Object(options)) {
+            Ok(code) => Ok(CallToolResult::structured(json!({ "code": code }))),
+            Err(err) => Err(ErrorData::internal_error(err, None)),
+        }
+    }
+
+    #[tool(name = "generate_field", description = "Generate a Payload CMS field template")]
+    fn generate_field(&self, Parameters(params): Parameters<GenerateFieldParams>) -> Result<CallToolResult, ErrorData> {
+        let mut options = serde_json::Map::new();
+        options.insert("name".into(), json!(params.name));
+        options.insert("type".into(), json!(params.field_type));
+        if let Some(required) = params.required { options.insert("required".into(), json!(required)); }
+        if let Some(unique) = params.unique { options.insert("unique".into(), json!(unique)); }
+        if let Some(localized) = params.localized { options.insert("localized".into(), json!(localized)); }
+        if let Some(access) = params.access { options.insert("access".into(), json!(access)); }
+        if let Some(admin) = params.admin { options.insert("admin".into(), admin); }
+        if let Some(validation) = params.validation { options.insert("validation".into(), json!(validation)); }
+        if let Some(default_value) = params.default_value { options.insert("defaultValue".into(), default_value); }
+
+        match generate_template(TemplateType::Field, &Value::Object(options)) {
+            Ok(code) => Ok(CallToolResult::structured(json!({ "code": code }))),
+            Err(err) => Err(ErrorData::internal_error(err, None)),
+        }
+    }
+
+    #[tool(name = "scaffold_project", description = "Scaffold a complete Payload CMS 3 project structure")]
+    fn scaffold_project(&self, Parameters(params): Parameters<ScaffoldOptions>) -> Result<CallToolResult, ErrorData> {
+        if let Err(errors) = validate_scaffold_options(&params) {
+            return Err(ErrorData::invalid_params("Invalid scaffold options", Some(json!({ "errors": errors }))));
+        }
+
+        let scaffold = scaffold_project(&params);
+        let file_structure = scaffold_to_json(scaffold);
+        Ok(CallToolResult::structured(json!({
+            "message": format!("Successfully scaffolded Payload CMS project: {}", params.project_name),
+            "fileStructure": file_structure
+        })))
+    }
+}
+
+#[tool_handler(router = self.tool_router)]
+impl ServerHandler for ToolBoxHandler {
     fn ping(
         &self,
         _ctx: RequestContext<RoleServer>,
@@ -41,7 +162,7 @@ impl ServerHandler for MyServerHandler {
 
     async fn list_resources(
         &self,
-        _req: Option<rmcp::model::PaginatedRequestParam>,
+        _req: Option<ListResourcesRequest>,
         _ctx: RequestContext<RoleServer>,
     ) -> Result<rmcp::model::ListResourcesResult, rmcp::ErrorData> {
         use rmcp::model::{Annotated, RawResource};
@@ -49,10 +170,10 @@ impl ServerHandler for MyServerHandler {
             resources: vec![Annotated {
                 raw: RawResource {
                     uri: "file://instructions".to_string(),
-                    name: "notify Tools Usage Instructions".to_string(),
-                    title: Some("notify Tools Guide".to_string()),
-                    description: Some("Guide to notify tools".to_string()),
-                    mime_type: Some("text/markdown".to_string()),
+                    name: "MCP Server Instructions".to_string(),
+                    title: Some("MCP Server Instructions".to_string()),
+                    description: Some("Usage instructions for this MCP server crate".to_string()),
+                    mime_type: Some("text/plain".to_string()),
                     size: None,
                     icons: None,
                 },
@@ -68,10 +189,9 @@ impl ServerHandler for MyServerHandler {
         _ctx: RequestContext<RoleServer>,
     ) -> Result<rmcp::model::ReadResourceResult, rmcp::ErrorData> {
         if req.uri == "file://instructions" {
-            let content = Self::instructions_content().unwrap_or_default();
             Ok(rmcp::model::ReadResourceResult {
                 contents: vec![rmcp::model::ResourceContents::text(
-                    content,
+                    Self::instructions().unwrap_or_default(),
                     "file://instructions",
                 )],
             })
@@ -81,27 +201,5 @@ impl ServerHandler for MyServerHandler {
                 None,
             ))
         }
-    }
-
-    fn list_tools(
-        &self,
-        _req: Option<ListToolsRequest>,
-        _ctx: RequestContext<RoleServer>,
-    ) -> impl std::future::Future<Output = Result<ListToolsResult, rmcp::ErrorData>> + Send {
-        ready(Ok(ListToolsResult {
-            tools: Vec::new(),
-            next_cursor: None,
-        }))
-    }
-
-    async fn call_tool(
-        &self,
-        request: CallToolRequest,
-        _ctx: RequestContext<RoleServer>,
-    ) -> Result<CallToolResult, rmcp::ErrorData> {
-        Err(MyServerHandler::create_tool_parse_error(
-            "Unknown tool",
-            &request.name,
-        ))
     }
 }

@@ -1,16 +1,16 @@
-use std::io;
+use rmcp::ErrorData as RpcError;
 
-use rmcp::service::ServiceError as RpcServiceError;
 use thiserror::Error;
+use tokio::io;
 
-pub type ServiceResult<T> = Result<T, ServiceError>;
+pub type ServiceResult<T> = core::result::Result<T, ServiceError>;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
     #[error("{0}")]
     FromString(String),
     #[error("{0}")]
-    RpcError(#[from] RpcServiceError),
+    RpcError(#[from] RpcError),
     #[error("{0}")]
     IoError(#[from] io::Error),
     #[error("{0}")]

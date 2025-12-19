@@ -1,4 +1,5 @@
 pub use crate::tools::generator::*;
+pub use crate::tools::mcp::*;
 pub use crate::tools::query::{
     get_categories, get_validation_rule_by_id, get_validation_rules_by_category,
     get_validation_rules_by_file_type, get_validation_rules_with_examples, query_validation_rules,

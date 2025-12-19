@@ -1,6 +1,9 @@
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
 pub enum TemplateType {
     Collection,
     Field,
@@ -12,24 +15,6 @@ pub enum TemplateType {
     Plugin,
     Block,
     Migration,
-}
-
-impl TemplateType {
-    pub fn try_from_str(value: &str) -> Result<Self, String> {
-        match value {
-            "collection" => Ok(TemplateType::Collection),
-            "field" => Ok(TemplateType::Field),
-            "global" => Ok(TemplateType::Global),
-            "config" => Ok(TemplateType::Config),
-            "access-control" => Ok(TemplateType::AccessControl),
-            "hook" => Ok(TemplateType::Hook),
-            "endpoint" => Ok(TemplateType::Endpoint),
-            "plugin" => Ok(TemplateType::Plugin),
-            "block" => Ok(TemplateType::Block),
-            "migration" => Ok(TemplateType::Migration),
-            other => Err(format!("Unsupported template type: {other}")),
-        }
-    }
 }
 
 pub fn generate_template(template_type: TemplateType, options: &Value) -> Result<String, String> {
