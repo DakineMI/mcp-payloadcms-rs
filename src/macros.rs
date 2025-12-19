@@ -14,25 +14,26 @@
 /// # Usage
 /// The macro is typically used within an async method that dispatches filesystem operations based on a `ToolBox`-style enum.
 /// Each tool must have a `run_tool` method with the signature:
-/// ```rust
-/// async fn run_tool(params: ParamsType, fs_service: &FsService) -> ServiceResult<()>
+/// ```rust,ignore
+/// async fn run_tool(params: ParamsType, service: &ServiceType) -> Result<(), ErrorType>
 /// ```
-/// where `ParamsType` is the parameter type for the specific tool, and `FsService` is the filesystem service type.
+/// where `ParamsType` is the parameter type for the specific tool, and `ServiceType` is the service type.
 ///
 /// # Example
-/// ```rust
+/// ```rust,ignore
 /// invoke_tools!(
 ///     tool_params,
-///     &self.fs_service,
-///     ReadMediaFileTool,
-///     WriteFileTool,
+///     &self.service,
+///     ReadTool,
+///     WriteTool,
 /// )
 /// ```
+///
 /// This expands to:
-/// ```rust
+/// ```rust,ignore
 /// match tool_params {
-///     ToolBox::ReadMediaFileTool(params) => ReadMediaFileTool::run_tool(params, &self.fs_service).await,
-///     ToolBox::WriteFileTool(params) => WriteFileTool::run_tool(params, &self.fs_service).await,
+///     ToolBox::ReadTool(params) => ReadTool::run_tool(params, &self.service).await,
+///     ToolBox::WriteTool(params) => WriteTool::run_tool(params, &self.service).await,
 /// }
 /// ```
 ///

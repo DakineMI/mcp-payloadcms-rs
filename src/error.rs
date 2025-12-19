@@ -15,6 +15,10 @@ pub enum ServiceError {
     IoError(#[from] io::Error),
     #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
+    #[error("Network error: {0}")]
+    NetworkError(String),
+    #[error("API error: {0}")]
+    ApiError(String),
     #[error("{0}")]
     Other(String),
 }

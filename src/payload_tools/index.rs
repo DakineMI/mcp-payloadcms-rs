@@ -1,3 +1,4 @@
+pub use crate::payload_tools::client::*;
 pub use crate::payload_tools::generator::*;
 pub use crate::payload_tools::mcp::*;
 pub use crate::payload_tools::query::{

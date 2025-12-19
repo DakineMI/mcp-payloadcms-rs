@@ -12,6 +12,7 @@ use crate::payload_tools::{
     sql::execute_sql_query,
     types::FileType,
     validator::validate_payload_code,
+    client::create_payload_client,
 };
 use rmcp::model::{CallToolResult, Content, Tool};
 use rmcp::ErrorData;
@@ -70,6 +71,33 @@ pub struct GenerateFieldParams {
     pub default_value: Option<Value>,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ConnectPayloadParams {
+    pub connection_string: String,
+    pub api_key: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct GetCollectionParams {
+    pub connection_string: String,
+    pub api_key: Option<String>,
+    pub slug: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ListCollectionsParams {
+    pub connection_string: String,
+    pub api_key: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ValidateAgainstLiveParams {
+    pub connection_string: String,
+    pub api_key: Option<String>,
+    pub slug: String,
+    pub config: Value,
+}
+
 pub fn tool_definitions() -> Vec<Tool> {
     vec![
         Tool::new(
@@ -111,6 +139,26 @@ pub fn tool_definitions() -> Vec<Tool> {
             "scaffold_project",
             "Scaffold a complete Payload CMS 3 project structure",
             rmcp::handler::server::tool::cached_schema_for_type::<ScaffoldOptions>(),
+        ),
+        Tool::new(
+            "connect_payload",
+            "Connect to a live Payload CMS instance and test the connection",
+            rmcp::handler::server::tool::cached_schema_for_type::<ConnectPayloadParams>(),
+        ),
+        Tool::new(
+            "get_collection_schema",
+            "Get collection schema from a live Payload CMS instance",
+            rmcp::handler::server::tool::cached_schema_for_type::<GetCollectionParams>(),
+        ),
+        Tool::new(
+            "list_collections",
+            "List all collections from a live Payload CMS instance",
+            rmcp::handler::server::tool::cached_schema_for_type::<ListCollectionsParams>(),
+        ),
+        Tool::new(
+            "validate_against_live",
+            "Validate a collection configuration against a live Payload instance",
+            rmcp::handler::server::tool::cached_schema_for_type::<ValidateAgainstLiveParams>(),
         ),
     ]
 }
@@ -236,6 +284,98 @@ pub async fn run_tool(name: &str, args: Value) -> Result<CallToolResult, ErrorDa
                 "message": format!("Successfully scaffolded Payload CMS project: {}", params.project_name),
                 "fileStructure": file_structure
             })))
+        }
+        "connect_payload" => {
+            let params: ConnectPayloadParams = serde_json::from_value(args)
+                .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
+
+            match create_payload_client(&params.connection_string, params.api_key) {
+                Ok(client) => {
+                    match client.test_connection() {
+                        Ok(info) => Ok(CallToolResult::structured(json!({
+                            "success": true,
+                            "server_info": info
+                        }))),
+                        Err(err) => Ok(CallToolResult::structured(json!({
+                            "success": false,
+                            "error": err.to_string()
+                        })))
+                    }
+                }
+                Err(err) => Ok(CallToolResult::structured(json!({
+                    "success": false,
+                    "error": err.to_string()
+                })))
+            }
+        }
+        "get_collection_schema" => {
+            let params: GetCollectionParams = serde_json::from_value(args)
+                .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
+
+            match create_payload_client(&params.connection_string, params.api_key) {
+                Ok(client) => {
+                    match client.get_collection(&params.slug) {
+                        Ok(collection) => Ok(CallToolResult::structured(json!({
+                            "success": true,
+                            "collection": collection
+                        }))),
+                        Err(err) => Ok(CallToolResult::structured(json!({
+                            "success": false,
+                            "error": err.to_string()
+                        })))
+                    }
+                }
+                Err(err) => Ok(CallToolResult::structured(json!({
+                    "success": false,
+                    "error": err.to_string()
+                })))
+            }
+        }
+        "list_collections" => {
+            let params: ListCollectionsParams = serde_json::from_value(args)
+                .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
+
+            match create_payload_client(&params.connection_string, params.api_key) {
+                Ok(client) => {
+                    match client.list_collections() {
+                        Ok(collections) => Ok(CallToolResult::structured(json!({
+                            "success": true,
+                            "collections": collections
+                        }))),
+                        Err(err) => Ok(CallToolResult::structured(json!({
+                            "success": false,
+                            "error": err.to_string()
+                        })))
+                    }
+                }
+                Err(err) => Ok(CallToolResult::structured(json!({
+                    "success": false,
+                    "error": err.to_string()
+                })))
+            }
+        }
+        "validate_against_live" => {
+            let params: ValidateAgainstLiveParams = serde_json::from_value(args)
+                .map_err(|err| ErrorData::invalid_params(err.to_string(), None))?;
+
+            match create_payload_client(&params.connection_string, params.api_key) {
+                Ok(client) => {
+                    match client.validate_collection_config(&params.slug, &params.config) {
+                        Ok(issues) => Ok(CallToolResult::structured(json!({
+                            "success": true,
+                            "issues": issues
+                        }))),
+                        Err(err) => Ok(CallToolResult::structured(json!({
+                            "success": false,
+                            "error": err.to_string()
+                        })))
+                    }
+                }
+                Err(err) => Ok(CallToolResult::structured(json!({
+                    "success": false,
+                    "error": err.to_string()
+                })))
+            }
         }
         _ => Err(ErrorData::invalid_params(
             format!("Unknown tool: {name}"),

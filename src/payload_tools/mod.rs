@@ -1,3 +1,4 @@
+pub mod client;
 pub mod generator;
 pub mod index;
 pub mod mcp;

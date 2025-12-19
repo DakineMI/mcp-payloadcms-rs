@@ -13,9 +13,11 @@ use crate::{
     server::ServerState,
     payload_tools::{
         mcp::{
-            EchoParams, ValidateParams, QueryParams, SqlParams, 
+            EchoParams, ValidateParams, QueryParams, SqlParams,
             GenerateTemplateParams, GenerateCollectionParams, GenerateFieldParams,
+            ConnectPayloadParams, GetCollectionParams, ListCollectionsParams, ValidateAgainstLiveParams,
         },
+        client::create_payload_client,
         scaffolder::{
             scaffold_project, validate_scaffold_options, ScaffoldFile, ScaffoldFileStructure,
             ScaffoldOptions,
@@ -28,14 +30,12 @@ use crate::{
 };
 
 pub struct ToolBoxHandler {
-    state: Arc<ServerState>,
     tool_router: ToolRouter<Self>,
 }
 
 impl ToolBoxHandler {
-    pub fn new(state: Arc<ServerState>) -> Self {
+    pub fn new(_state: Arc<ServerState>) -> Self {
         Self {
-            state,
             tool_router: Self::tool_router(),
         }
     }
@@ -148,6 +148,94 @@ impl ToolBoxHandler {
             "message": format!("Successfully scaffolded Payload CMS project: {}", params.project_name),
             "fileStructure": file_structure
         })))
+    }
+
+    #[tool(name = "connect_payload", description = "Connect to a live Payload CMS instance and test the connection")]
+    async fn connect_payload(&self, Parameters(params): Parameters<ConnectPayloadParams>) -> Result<CallToolResult, ErrorData> {
+        match create_payload_client(&params.connection_string, params.api_key) {
+            Ok(client) => {
+                match client.test_connection() {
+                    Ok(info) => Ok(CallToolResult::structured(json!({
+                        "success": true,
+                        "server_info": info
+                    }))),
+                    Err(err) => Ok(CallToolResult::structured(json!({
+                        "success": false,
+                        "error": err.to_string()
+                    })))
+                }
+            }
+            Err(err) => Ok(CallToolResult::structured(json!({
+                "success": false,
+                "error": err.to_string()
+            })))
+        }
+    }
+
+    #[tool(name = "get_collection_schema", description = "Get collection schema from a live Payload CMS instance")]
+    async fn get_collection_schema(&self, Parameters(params): Parameters<GetCollectionParams>) -> Result<CallToolResult, ErrorData> {
+        match create_payload_client(&params.connection_string, params.api_key) {
+            Ok(client) => {
+                match client.get_collection(&params.slug) {
+                    Ok(collection) => Ok(CallToolResult::structured(json!({
+                        "success": true,
+                        "collection": collection
+                    }))),
+                    Err(err) => Ok(CallToolResult::structured(json!({
+                        "success": false,
+                        "error": err.to_string()
+                    })))
+                }
+            }
+            Err(err) => Ok(CallToolResult::structured(json!({
+                "success": false,
+                "error": err.to_string()
+            })))
+        }
+    }
+
+    #[tool(name = "list_collections", description = "List all collections from a live Payload CMS instance")]
+    async fn list_collections(&self, Parameters(params): Parameters<ListCollectionsParams>) -> Result<CallToolResult, ErrorData> {
+        match create_payload_client(&params.connection_string, params.api_key) {
+            Ok(client) => {
+                match client.list_collections() {
+                    Ok(collections) => Ok(CallToolResult::structured(json!({
+                        "success": true,
+                        "collections": collections
+                    }))),
+                    Err(err) => Ok(CallToolResult::structured(json!({
+                        "success": false,
+                        "error": err.to_string()
+                    })))
+                }
+            }
+            Err(err) => Ok(CallToolResult::structured(json!({
+                "success": false,
+                "error": err.to_string()
+            })))
+        }
+    }
+
+    #[tool(name = "validate_against_live", description = "Validate a collection configuration against a live Payload instance")]
+    async fn validate_against_live(&self, Parameters(params): Parameters<ValidateAgainstLiveParams>) -> Result<CallToolResult, ErrorData> {
+        match create_payload_client(&params.connection_string, params.api_key) {
+            Ok(client) => {
+                match client.validate_collection_config(&params.slug, &params.config) {
+                    Ok(issues) => Ok(CallToolResult::structured(json!({
+                        "success": true,
+                        "issues": issues
+                    }))),
+                    Err(err) => Ok(CallToolResult::structured(json!({
+                        "success": false,
+                        "error": err.to_string()
+                    })))
+                }
+            }
+            Err(err) => Ok(CallToolResult::structured(json!({
+                "success": false,
+                "error": err.to_string()
+            })))
+        }
     }
 }
 
