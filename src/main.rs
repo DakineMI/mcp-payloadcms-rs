@@ -5,7 +5,7 @@ use std::{
     process::Command as ProcessCommand,
 };
 
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 use colored::Colorize;
 use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
 use mcp_payloadcms_rs::{cli, metadata, server};
