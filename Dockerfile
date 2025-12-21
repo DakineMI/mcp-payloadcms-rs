@@ -5,7 +5,7 @@ WORKDIR /app
 COPY . .
 
 # Install build dependencies if needed (e.g., pkg-config, libssl-dev)
-RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev > /dev/null 2>&1 && rm -rf /var/lib/apt/lists/*
 
 # Build the release binary
 RUN cargo build --release
@@ -16,7 +16,7 @@ FROM debian:bullseye-slim
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y ca-certificates libssl1.1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl1.1 > /dev/null 2>&1 && rm -rf /var/lib/apt/lists/*
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/target/release/mcp-payloadcms-rs /app/server
