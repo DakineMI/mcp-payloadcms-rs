@@ -11,12 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libs
 RUN cargo build --release
 
 # Runtime stage
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl1.1 > /dev/null 2>&1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl3 > /dev/null 2>&1 && rm -rf /var/lib/apt/lists/*
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/target/release/mcp-payloadcms-rs /app/server

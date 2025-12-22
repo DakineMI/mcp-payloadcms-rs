@@ -40,7 +40,7 @@ async fn main() {
                     .spawn()
                 {
                     Ok(child) => {
-                        println!(
+                        eprintln!(
                             "{} started in background (pid {})",
                             "OK".green().bold(),
                             child.id()
@@ -88,7 +88,7 @@ async fn main() {
                         format!("Warning: could not write pid file: {err}").yellow()
                     );
                 } else {
-                    println!(
+                    eprintln!(
                         "{} pid file written to {}",
                         "OK".green().bold(),
                         &effective.pid_file
@@ -106,7 +106,7 @@ async fn main() {
             shutdown_server(&args);
         }
         cli::Command::Version => {
-            println!(
+            eprintln!(
                 "{} v{} - {}",
                 metadata::PKG_NAME,
                 metadata::PKG_VERSION,
@@ -180,7 +180,7 @@ fn save_settings(args: &cli::CommandArguments) {
             format!("Warning: could not persist settings: {err}").yellow()
         );
     } else {
-        println!(
+        eprintln!(
             "{} settings saved to {}",
             "OK".green().bold(),
             SETTINGS_PATH
@@ -291,13 +291,13 @@ fn status_report(args: &cli::CommandArguments) {
         None => ("⬜".normal(), "unknown".yellow().bold()),
     };
 
-    println!("{} {}", state_icon, state_msg);
-    println!(
+    eprintln!("{} {}", state_icon, state_msg);
+    eprintln!(
         "  {} {}",
         "Version:".blue().bold(),
         format!("{} {}", metadata::PKG_NAME, metadata::PKG_VERSION)
     );
-    println!(
+    eprintln!(
         "  {} {}",
         "Server:".blue().bold(),
         format!("{} -- {}", args.server_name, args.server_description)
@@ -314,11 +314,11 @@ fn status_report(args: &cli::CommandArguments) {
                     format!("{} transports", endpoints.len()).green().bold(),
                 )
             };
-            println!("  {} {}", tx_icon, tx_label);
+            eprintln!("  {} {}", tx_icon, tx_label);
             for ep in endpoints {
-                println!("    - {ep}");
+                eprintln!("    - {ep}");
             }
-            println!(
+            eprintln!(
                 "  {}",
                 "Ports set to 0 will be auto-assigned at runtime.".yellow()
             );
@@ -328,11 +328,11 @@ fn status_report(args: &cli::CommandArguments) {
 }
 
 fn interactive_setup(args: &mut cli::CommandArguments) {
-    println!("{}", "Setup assistant".green().bold());
+    eprintln!("{}", "Setup assistant".green().bold());
     let clients = ["vscode", "codex", "gemini", "zed", "roo", "other"];
-    println!("Known clients:");
+    eprintln!("Known clients:");
     for (i, c) in clients.iter().enumerate() {
-        println!("{:>2}. {}", i + 1, c);
+        eprintln!("{:>2}. {}", i + 1, c);
     }
     let client_idx = prompt_choice("Select client [1]: ", &clients, 0);
     let client = clients[client_idx];
@@ -361,7 +361,7 @@ fn interactive_setup(args: &mut cli::CommandArguments) {
         })
         .unwrap_or(0);
 
-    println!("Available transports (enabled marked with *):");
+    eprintln!("Available transports (enabled marked with *):");
     for (i, (name, enabled, addr)) in transport_options.iter().enumerate() {
         let mark = if *enabled { "*" } else { " " };
         let addr_display = if *name == "stdio" {
@@ -369,7 +369,7 @@ fn interactive_setup(args: &mut cli::CommandArguments) {
         } else {
             format!(" ({addr})")
         };
-        println!("{:>2}. [{}] {}{}", i + 1, mark, name, addr_display);
+        eprintln!("{:>2}. [{}] {}{}", i + 1, mark, name, addr_display);
     }
     let transport_idx = prompt_choice(
         &format!("Select transport [{}]: ", default_transport_idx + 1),
@@ -381,7 +381,7 @@ fn interactive_setup(args: &mut cli::CommandArguments) {
     );
     let (transport_name, _, addr) = &transport_options[transport_idx];
 
-    println!(
+    eprintln!(
         "\n{} {} using transport {}",
         "Configuring".green().bold(),
         client,
@@ -397,23 +397,23 @@ fn interactive_setup(args: &mut cli::CommandArguments) {
         _ => {}
     }
     match *transport_name {
-        "stdio" => println!("Use stdio mode; no host/port required."),
-        "unix" => println!("Socket path: {}", addr),
+        "stdio" => eprintln!("Use stdio mode; no host/port required."),
+        "unix" => eprintln!("Socket path: {}", addr),
         _ => {
             if addr.ends_with(":0") {
-                println!("Address: {} (port auto-assigned at runtime)", addr);
+                eprintln!("Address: {} (port auto-assigned at runtime)", addr);
             } else {
-                println!("Address: {}", addr);
+                eprintln!("Address: {}", addr);
             }
         }
     }
     if !matches!(*transport_name, "http+streamable-sse" | "sse" | "stdio") {
-        println!(
+        eprintln!(
             "{} Non-default transport selected; enabling it in settings.",
             "Note:".yellow()
         );
     }
-    println!(
+    eprintln!(
         "{} Settings updated. HTTP/SSE/stdio remain preferred defaults unless you disable them.",
         "Info".blue().bold()
     );
@@ -422,8 +422,8 @@ fn interactive_setup(args: &mut cli::CommandArguments) {
 fn config_tui(args: &mut cli::CommandArguments) {
     let theme = ColorfulTheme::default();
     loop {
-        println!("\n{} {}", "Config".green().bold(), "(settings.json)".blue());
-        println!(
+        eprintln!("\n{} {}", "Config".green().bold(), "(settings.json)".blue());
+        eprintln!(
             "  transports: stdio={}, http={}, sse={}, tcp={}, unix={}, ws={}",
             args.enable_stdio,
             args.enable_http,
@@ -432,12 +432,12 @@ fn config_tui(args: &mut cli::CommandArguments) {
             args.enable_unix,
             args.enable_ws
         );
-        println!(
+        eprintln!(
             "  addresses: http={}, sse={}, tcp={}, ws={}, unix={}",
             args.http_addr, args.sse_addr, args.tcp_addr, args.ws_addr, args.unix_path
         );
-        println!("  pid file: {}", args.pid_file);
-        println!(
+        eprintln!("  pid file: {}", args.pid_file);
+        eprintln!(
             "  server: {} -- {}",
             args.server_name, args.server_description
         );
@@ -573,7 +573,7 @@ fn shutdown_server(args: &cli::CommandArguments) {
     match fs::read_to_string(pid_path) {
         Ok(contents) => match contents.trim().parse::<i32>() {
             Ok(pid) => {
-                println!(
+                eprintln!(
                     "{} sending shutdown to pid {}",
                     "Shutdown".yellow().bold(),
                     pid
