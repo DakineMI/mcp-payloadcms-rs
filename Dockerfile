@@ -25,6 +25,8 @@ COPY --from=builder /app/target/release/mcp-payloadcms-rs /app/server
 RUN useradd -m -u 1000 mcpuser
 USER mcpuser
 
-# Set the default command to run the server in foreground with stdio enabled
-# We explicitly disable other transports to ensure a clean stdio stream
-CMD ["/app/server", "start", "--foreground"]
+# Set the entrypoint to the server binary
+ENTRYPOINT ["/app/server"]
+
+# Default arguments
+CMD ["start", "--foreground"]
